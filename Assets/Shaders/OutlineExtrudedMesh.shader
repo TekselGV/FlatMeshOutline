@@ -3,9 +3,14 @@ Shader "Unlit/OutlineExtrudedMesh"
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
-        _OutlineWidth ("Outline Width", Range(0, 10)) = 0.2
-        _OutlineColor ("Outline Color", Color) = (1,1,1,1)
-        _OutlineColor2 ("Outline Color 2", Color) = (1,1,1,1)
+        _OutlineWidth ("Outline Width", Range(0, 1)) = 0.2
+        [Header (Color Setup)]
+        [Space(7)]
+        _OutlineColorInner ("Outline Color Inner", Color) = (0,0,0,1)
+        _OutlineColorOuter ("Outline Color Outer", Color) = (1,1,1,0)
+        [Space(2)]
+        _OutlineColorEdge ("Outline Color Edge", Range(0, 1)) = 0.5
+        _OutlineColorEdgeSmooth ("Outline Color Edge Smooth", Range(0.001, 1)) = 0.2
     }
     SubShader
     {
@@ -28,7 +33,6 @@ Shader "Unlit/OutlineExtrudedMesh"
             
             Blend SrcAlpha OneMinusSrcAlpha
             ZWrite Off
-            //ZWrite On
             
             HLSLPROGRAM
             #pragma vertex vert
@@ -38,9 +42,11 @@ Shader "Unlit/OutlineExtrudedMesh"
 
             CBUFFER_START(UnityPerMaterial)
                 half4 _MainTex_ST;
-                half4 _OutlineColor;
-                half4 _OutlineColor2;
+                half4 _OutlineColorInner;
+                half4 _OutlineColorOuter;
                 half _OutlineWidth;
+                half _OutlineColorEdge;
+                half _OutlineColorEdgeSmooth;
             CBUFFER_END
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
@@ -66,8 +72,15 @@ Shader "Unlit/OutlineExtrudedMesh"
             {
                 VertexOutput output = (VertexOutput)0;
 
-                input.positionOS += input.normalOS * input.uv.z * _OutlineWidth + half3(0, -0.2, 0) * input.uv.z;
+                float3 objectScale = float3(
+                    length(GetObjectToWorldMatrix()._m00_m10_m20),
+                    length(GetObjectToWorldMatrix()._m01_m11_m21),
+                    length(GetObjectToWorldMatrix()._m02_m12_m22)
+                );
 
+                half3 scaleFactor = 1 / objectScale; // To make outline width independent from object transform scale
+                input.positionOS += input.normalOS * input.uv.z * _OutlineWidth * scaleFactor;
+                
                 VertexPositionInputs positionInputs = GetVertexPositionInputs(input.positionOS);
 
                 output.positionCS = positionInputs.positionCS;
@@ -82,10 +95,13 @@ Shader "Unlit/OutlineExtrudedMesh"
             {
                 half4 color = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv);
                 color *= input.vertexColor;
-                color = lerp(color, lerp(_OutlineColor, _OutlineColor2, input.gradient), step(input.gradient, .99));
-                
 
-                color.a *= input.gradient;
+                half step1 = saturate(_OutlineColorEdge + _OutlineColorEdgeSmooth);
+                half step2 = saturate(_OutlineColorEdge - _OutlineColorEdgeSmooth);
+                half outlineGradient = smoothstep(step1, step2, input.gradient);
+                
+                half4 outlineColor = lerp(_OutlineColorInner, _OutlineColorOuter, outlineGradient);
+                color = lerp(color, outlineColor, step(input.gradient, .99));
                 
                 return color;
             }

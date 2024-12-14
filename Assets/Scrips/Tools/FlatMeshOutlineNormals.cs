@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using JetBrains.Annotations;
 using Unity.VisualScripting.Dependencies.NCalc;
 using UnityEditor;
 using UnityEngine;
@@ -6,6 +7,9 @@ using UnityEngine;
 [ExecuteInEditMode]
 public class FlatMeshOutlineNormals : MonoBehaviour
 {
+    /// <summary>
+    /// Starting width of the extruded outline mesh
+    /// </summary>
     private const float ExtrudeEdgeWidth = 0.0f;
     private const float ExtrudeEdgeDepth = 0.1f;
     
@@ -21,23 +25,25 @@ public class FlatMeshOutlineNormals : MonoBehaviour
     {
         if (_run)
         {
-            CalculateAverageNormals(_meshFilter.sharedMesh);
+            var processedMesh = CalculateAverageNormals(_meshFilter.sharedMesh);
+            SaveMesh(processedMesh);
+
             _run = false;
         }
     }
 
-    private void CalculateAverageNormals(Mesh mesh)
+    private static Mesh CalculateAverageNormals(Mesh mesh, bool _shouldExtrudeEdges = false)
     {
         var processedMesh = CreateMeshCopy(mesh);
         var allEdges = GetEdgeDatasFromMesh(processedMesh);
         var outerEdges = GetOuterEdgesFromEdges(allEdges);
 
-        GenerateOuterNormalsForMesh(processedMesh, outerEdges);
+        processedMesh = GenerateOuterNormalsForMesh(processedMesh, outerEdges, _shouldExtrudeEdges);
 
-        SaveMesh(processedMesh);
+        return processedMesh;
     }
 
-    private Mesh CreateMeshCopy(Mesh mesh)
+    private static Mesh CreateMeshCopy(Mesh mesh)
     {
         var meshCopy = new Mesh
         {
@@ -53,7 +59,7 @@ public class FlatMeshOutlineNormals : MonoBehaviour
         return meshCopy;
     }
     
-    private List<EdgeData> GetEdgeDatasFromMesh(Mesh mesh)
+    private static List<EdgeData> GetEdgeDatasFromMesh(Mesh mesh)
     {
         var triangles = mesh.triangles;
         var vertices = mesh.vertices;
@@ -96,7 +102,7 @@ public class FlatMeshOutlineNormals : MonoBehaviour
         return edgeDatas;
     }
 
-    private List<EdgeData> GetOuterEdgesFromEdges(List<EdgeData> allEdges)
+    private static List<EdgeData> GetOuterEdgesFromEdges(List<EdgeData> allEdges)
     {
         var outerEdges = new List<EdgeData>();
         for (var i = 0; i < allEdges.Count; i++)
@@ -123,7 +129,7 @@ public class FlatMeshOutlineNormals : MonoBehaviour
         return outerEdges;
     }
 
-    private void GenerateOuterNormalsForMesh(Mesh mesh, List<EdgeData> outerEdges)
+    private static Mesh GenerateOuterNormalsForMesh(Mesh mesh, List<EdgeData> outerEdges, bool shouldExtrudeEdges)
     {
         var outerVertices = new List<int>();
         foreach (var edgeData in outerEdges)
@@ -141,7 +147,8 @@ public class FlatMeshOutlineNormals : MonoBehaviour
 
         for (var i = 0; i < newUVs.Length; i++)
             newUVs[i] = new Vector3(mesh.uv[i].x, mesh.uv[i].y, 0f);
-        
+
+        var newUVz = shouldExtrudeEdges ? 0f : 1f;
         // Get two connected Edges and average their normals
         foreach (var vertexIndex in outerVertices)
         {
@@ -167,10 +174,10 @@ public class FlatMeshOutlineNormals : MonoBehaviour
             Debug.DrawRay(mesh.vertices[vertexIndex], averageNormal, Color.blue, 10f);
 
             newNormals[vertexIndex] = averageNormal;
-            newUVs[vertexIndex].z = 1f; // Mask out the vertices with averaged normals
+            newUVs[vertexIndex].z = newUVz; // Mask out the vertices with averaged normals
         }
 
-        if (!_shouldExtrudeEdges)
+        if (!shouldExtrudeEdges)
         {
             mesh.SetUVs(0, newUVs);
             mesh.SetNormals(newNormals);
@@ -190,9 +197,7 @@ public class FlatMeshOutlineNormals : MonoBehaviour
         
         var newExtrudedUVs = new List<Vector3>();
         newExtrudedUVs.AddRange(newUVs);
-        for (var i = 0; i < newExtrudedUVs.Count; i++) 
-            newExtrudedUVs[i] = new Vector3(newExtrudedUVs[i].x, newExtrudedUVs[i].y, 0f);
-
+        
         var originalVertexCount = newExtrudedVertices.Count;
         // Extrude along normals
         for (var i = 0; i < outerVertices.Count; i++)
@@ -236,19 +241,23 @@ public class FlatMeshOutlineNormals : MonoBehaviour
         mesh.SetNormals(newExtrudedNormals);
 
         mesh.Optimize();
+        
+        return mesh;
     }
     
-    private void SaveMesh(Mesh mesh)
+    private void SaveMesh(Mesh inputMesh, [CanBeNull] MeshFilter outputMeshFilter = null, string path = null)
     {
-        var path = "Assets/MeshWithOutlineNormals.mesh";
-        AssetDatabase.CreateAsset(mesh, path);
+        if (path == null)
+            path = "Assets/MeshWithOutlineNormals.mesh";
+        
+        AssetDatabase.CreateAsset(inputMesh, path);
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         
-        _testResultMeshFilter.sharedMesh = AssetDatabase.LoadAssetAtPath(path, typeof(Mesh)) as Mesh;
-        
         Debug.Log($"Mesh saved, path: <b>{path}</b>");
-        
+
+        if (outputMeshFilter != null)
+            outputMeshFilter.sharedMesh = AssetDatabase.LoadAssetAtPath(path, typeof(Mesh)) as Mesh;
     }
     
     public class EdgeData
