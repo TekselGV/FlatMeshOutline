@@ -3,7 +3,7 @@ Shader "Unlit/OutlineExtrudedMesh"
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
-        _OutlineWidth ("Outline Width", Range(0, 1)) = 0.2
+        _OutlineWidth ("Outline Width", Range(0, 2)) = 0.2
         [Header (Color Setup)]
         [Space(7)]
         _OutlineColorInner ("Outline Color Inner", Color) = (0,0,0,1)
@@ -32,7 +32,8 @@ Shader "Unlit/OutlineExtrudedMesh"
             }
             
             Blend SrcAlpha OneMinusSrcAlpha
-            ZWrite Off
+            
+            Zwrite Off // if big outline width causing self-intersecting Z-fighting artifacts - try 'Zwrite On' 
             
             HLSLPROGRAM
             #pragma vertex vert

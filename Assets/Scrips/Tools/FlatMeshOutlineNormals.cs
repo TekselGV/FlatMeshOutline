@@ -11,6 +11,11 @@ public class FlatMeshOutlineNormals : MonoBehaviour
     /// Starting width of the extruded outline mesh
     /// </summary>
     private const float ExtrudeEdgeWidth = 0.0f;
+    
+    /// <summary>
+    /// Affect the outer normals depth in the direction of triangle normal to avoid self
+    /// Z-fighting in the case of very thick outline width
+    /// </summary>
     private const float ExtrudeEdgeDepth = 0.1f;
     
     [SerializeField] private bool _run;
@@ -87,7 +92,7 @@ public class FlatMeshOutlineNormals : MonoBehaviour
             var triangleCenter = positionsSum / 3f;
             // Calculate triangle normal from vertex order.
             // Source: https://stackoverflow.com/questions/19350792/calculate-normal-of-a-single-triangle-in-3d-space
-            var triangleNormal = Vector3.Cross(positions[1] - positions[0], positions[2] - positions[0]).normalized;
+            var triangleNormal = Vector3.Cross(positions[1] - positions[0], positions[2] - positions[0]);
             
             var edgeData0 = new EdgeData(positions[0], indices[0], positions[1], indices[1], triangleCenter, triangleNormal);
             var edgeData1 = new EdgeData(positions[1], indices[1], positions[2], indices[2], triangleCenter, triangleNormal);
@@ -151,27 +156,29 @@ public class FlatMeshOutlineNormals : MonoBehaviour
         // Get two connected Edges and average their normals
         foreach (var vertexIndex in outerVertices)
         {
-            var outerEdgeNormals = new List<Vector3>();
-            
+            var outerEdgeNormals = new Vector3[2];
+            var outerTriangleNormals = new Vector3[2];
+            var index = 0;
             foreach (var edge in outerEdges)
                 if (edge.Point1Index == vertexIndex || edge.Point2Index == vertexIndex)
-                    outerEdgeNormals.Add(edge.OuterNormal);
-
-            if (outerEdgeNormals.Count != 2)
-            {
-                Debug.LogWarning($"outerEdgeNormals Count is {outerEdgeNormals.Count} for {vertexIndex} and should be 2. " +
-                               "\nMesh might have topology errors");
-                continue;                
-            }
+                {
+                    if (index > 1)
+                        break;
+                    
+                    outerEdgeNormals[index] = edge.OuterNormal;
+                    outerTriangleNormals[index] = edge.TriangleNormal;
+                    index++;
+                }
 
             // We make length correction to maintain the uniform outline width in shader,
             // so the normals length have width coefficient built inside
             var angle = Vector3.Angle(outerEdgeNormals[0], outerEdgeNormals[1]) / 2f;
             var length = 1 / Mathf.Cos(angle * Mathf.Deg2Rad);
             var averageNormal = (outerEdgeNormals[0] + outerEdgeNormals[1]).normalized * length;
-            
-            Debug.DrawRay(mesh.vertices[vertexIndex], averageNormal, Color.blue, 10f);
 
+            if (ExtrudeEdgeDepth > 0f)
+                averageNormal -= (outerTriangleNormals[0] + outerTriangleNormals[1]).normalized * ExtrudeEdgeDepth;
+            
             newNormals[vertexIndex] = averageNormal;
             newUVs[vertexIndex].z = newUVz; // Mask out the vertices with averaged normals
         }
@@ -219,6 +226,7 @@ public class FlatMeshOutlineNormals : MonoBehaviour
             }
         }
 
+        // Create triangles in clockwise order
         foreach (var outerEdge in outerEdges)
         {
             var triangleData = new int[6];
@@ -261,6 +269,7 @@ public class FlatMeshOutlineNormals : MonoBehaviour
         internal readonly int Point1Index;
         internal readonly int Point2Index;
         internal readonly Vector3 OuterNormal;
+        internal readonly Vector3 TriangleNormal;
     
         internal int ExtrudedPoint1Index;
         internal int ExtrudedPoint2Index;
@@ -271,19 +280,22 @@ public class FlatMeshOutlineNormals : MonoBehaviour
             Point1Index = point1Index;
             Point2Index = point2Index;
 
+            TriangleNormal = triangleNormal;
+
             var edgeCenter = (point1 + point2) / 2;
       
             var direction1 = point1 - point2;
             var direction2 = point2 - point1;
       
-            var edgeNormal1 = Vector3.Cross(direction1, triangleNormal).normalized;
-            var edgeNormal2 = Vector3.Cross(direction2, triangleNormal).normalized;
+            var edgeNormal1 = Vector3.Cross(direction1, triangleNormal);
+            var edgeNormal2 = Vector3.Cross(direction2, triangleNormal);
 
             var edgeCenterToTriangleCenterDirection = triangleCenter - edgeCenter;
             var angle1 = Vector3.Angle(edgeNormal1, edgeCenterToTriangleCenterDirection);
             var angle2 = Vector3.Angle(edgeNormal2, edgeCenterToTriangleCenterDirection);
       
             OuterNormal = angle1 < angle2 ? edgeNormal2 : edgeNormal1;
+            OuterNormal.Normalize();
         }
 
         public bool Approximate(EdgeData edgeData) =>
