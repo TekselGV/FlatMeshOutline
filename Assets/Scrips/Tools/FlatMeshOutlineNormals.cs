@@ -182,7 +182,7 @@ public class FlatMeshOutlineNormals : MonoBehaviour
             mesh.SetUVs(0, newUVs);
             mesh.SetNormals(newNormals);
             
-            return;
+            return mesh;
         }
         
         // Create copy of mesh normals and UVs
