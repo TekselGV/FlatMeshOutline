@@ -1,4 +1,4 @@
-Shader "Unlit/Outline"
+Shader "Unlit/OutlineTwoPass"
 {
     Properties
     {

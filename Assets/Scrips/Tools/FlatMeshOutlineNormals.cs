@@ -6,7 +6,7 @@ using UnityEngine;
 [ExecuteInEditMode]
 public class FlatMeshOutlineNormals : MonoBehaviour
 {
-    private const float ExtrudeEdgeWidth = 0.25f;
+    private const float ExtrudeEdgeWidth = 0.0f;
     private const float ExtrudeEdgeDepth = 0.1f;
     
     [SerializeField] private bool _run;
@@ -190,6 +190,8 @@ public class FlatMeshOutlineNormals : MonoBehaviour
         
         var newExtrudedUVs = new List<Vector3>();
         newExtrudedUVs.AddRange(newUVs);
+        for (var i = 0; i < newExtrudedUVs.Count; i++) 
+            newExtrudedUVs[i] = new Vector3(newExtrudedUVs[i].x, newExtrudedUVs[i].y, 0f);
 
         var originalVertexCount = newExtrudedVertices.Count;
         // Extrude along normals
@@ -199,6 +201,7 @@ public class FlatMeshOutlineNormals : MonoBehaviour
             newExtrudedVertices.Add(extrudedVertex);
             newExtrudedNormals.Add(newNormals[outerVertices[i]]);
             var newUV = new Vector3(newUVs[outerVertices[i]].x, newUVs[outerVertices[i]].y, 1f);
+            
             newExtrudedUVs.Add(newUV);
             
             var newVertexIndex = originalVertexCount + i;
@@ -232,7 +235,7 @@ public class FlatMeshOutlineNormals : MonoBehaviour
         mesh.SetUVs(0, newExtrudedUVs);
         mesh.SetNormals(newExtrudedNormals);
 
-        //mesh.Optimize();
+        mesh.Optimize();
     }
     
     private void SaveMesh(Mesh mesh)
