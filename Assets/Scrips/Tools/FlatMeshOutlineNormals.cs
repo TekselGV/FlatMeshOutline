@@ -6,7 +6,7 @@ using UnityEngine;
 [ExecuteInEditMode]
 public class FlatMeshOutlineNormals : MonoBehaviour
 {
-    private const float ExtrudeEdgeWidth = 0.5f;
+    private const float ExtrudeEdgeWidth = 0.25f;
     private const float ExtrudeEdgeDepth = 0.1f;
     
     [SerializeField] private bool _run;
@@ -105,7 +105,7 @@ public class FlatMeshOutlineNormals : MonoBehaviour
                 continue;
 
             var hasTwin = false;
-            for (var j = i + 1; j < allEdges.Count - 1; j++)
+            for (var j = i + 1; j < allEdges.Count; j++)
             {
                 if (allEdges[i].Approximate(allEdges[j]))
                 {
@@ -125,12 +125,6 @@ public class FlatMeshOutlineNormals : MonoBehaviour
 
     private void GenerateOuterNormalsForMesh(Mesh mesh, List<EdgeData> outerEdges)
     {
-        foreach (var edge in outerEdges)
-        {
-            Debug.DrawLine(edge.Point1, edge.Point2, Color.green, 10f);
-            Debug.LogError($"edge: <b>{edge.Point1}</b>, P2: <b>{edge.Point2}</b>");
-        }
-        
         var outerVertices = new List<int>();
         foreach (var edgeData in outerEdges)
         {
@@ -257,9 +251,7 @@ public class FlatMeshOutlineNormals : MonoBehaviour
     public class EdgeData
     {
         internal readonly int Point1Index;
-        internal readonly Vector3 Point1;
         internal readonly int Point2Index;
-        internal readonly Vector3 Point2;
         internal readonly Vector3 OuterNormal;
     
         internal int ExtrudedPoint1Index;
@@ -270,8 +262,6 @@ public class FlatMeshOutlineNormals : MonoBehaviour
         {
             Point1Index = point1Index;
             Point2Index = point2Index;
-            Point1 = point1;
-            Point2 = point2;
 
             var edgeCenter = (point1 + point2) / 2;
       
@@ -291,6 +281,5 @@ public class FlatMeshOutlineNormals : MonoBehaviour
         public bool Approximate(EdgeData edgeData) =>
             (Point1Index == edgeData.Point1Index && Point2Index == edgeData.Point2Index) || 
             (Point1Index == edgeData.Point2Index && Point2Index == edgeData.Point1Index);
-            //(Point1 == edgeData.Point1 && Point2 == edgeData.Point2) || (Point1 == edgeData.Point2 && Point2 == edgeData.Point1);
     }
 }
