@@ -25,20 +25,22 @@ public class FlatMeshOutlineNormals : MonoBehaviour
     {
         if (_run)
         {
-            CalculateAverageNormals(_meshFilter.sharedMesh, _shouldExtrudeEdges);
+            var processedMesh = CalculateAverageNormals(_meshFilter.sharedMesh, _shouldExtrudeEdges);
+            SaveMesh(processedMesh);
+
             _run = false;
         }
     }
 
-    private void CalculateAverageNormals(Mesh mesh, bool shouldExtrudeEdges)
+    private Mesh CalculateAverageNormals(Mesh mesh, bool shouldExtrudeEdges)
     {
         var processedMesh = CreateMeshCopy(mesh);
         var allEdges = GetEdgeDatasFromMesh(processedMesh);
         var outerEdges = GetOuterEdgesFromEdges(allEdges);
 
         GenerateOuterNormalsForMesh(processedMesh, outerEdges, shouldExtrudeEdges);
-
-        SaveMesh(processedMesh);
+        
+        return processedMesh;
     }
 
     private Mesh CreateMeshCopy(Mesh mesh)
@@ -62,9 +64,8 @@ public class FlatMeshOutlineNormals : MonoBehaviour
         var triangles = mesh.triangles;
         var vertices = mesh.vertices;
         var normals = mesh.normals;
-
         var edgeDatas = new List<EdgeData>();
-
+        
         // Run through all triangles and form up data objects by triangles with corresponding with vertex indices,
         // vertex positions and average normal
         for (var i = 0; i < triangles.Length; i += 3)
