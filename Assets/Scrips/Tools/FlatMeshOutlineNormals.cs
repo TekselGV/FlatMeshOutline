@@ -12,11 +12,9 @@ public class FlatMeshOutlineNormals : MonoBehaviour
     /// </summary>
     private const float ExtrudeEdgeWidth = 0.0f;
     
-    /// <summary>
-    /// Affect the outer normals depth in the direction of triangle normal to avoid self
-    /// Z-fighting in the case of very thick outline width
-    /// </summary>
-    private const float ExtrudeEdgeDepth = 0.1f;
+    [Tooltip("Affect the outer normals depth in the direction of triangle normal to avoid self " +
+             "Z-fighting in the case of very thick outline width")]
+    [SerializeField] private float ExtrudeEdgeDepth = 0.1f;
     
     [SerializeField] private bool _run;
 
@@ -68,7 +66,6 @@ public class FlatMeshOutlineNormals : MonoBehaviour
     {
         var triangles = mesh.triangles;
         var vertices = mesh.vertices;
-        var normals = mesh.normals;
         var edgeDatas = new List<EdgeData>();
         
         // Run through all triangles and form up data objects by triangles with corresponding with vertex indices,
@@ -77,14 +74,12 @@ public class FlatMeshOutlineNormals : MonoBehaviour
         {
             var indices = new int[3];
             var positions = new Vector3[3];
-            var triangleNormals = new Vector3[3];
 
             var positionsSum = Vector3.zero;
             for (var j = 0; j < 3; j++)
             {
                 indices[j] = triangles[i + j];
                 positions[j] = vertices[indices[j]];
-                triangleNormals[j] = normals[indices[j]];
 
                 positionsSum += positions[j];
             }

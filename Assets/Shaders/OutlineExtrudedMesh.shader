@@ -34,6 +34,7 @@ Shader "Unlit/OutlineExtrudedMesh"
             Blend SrcAlpha OneMinusSrcAlpha
             
             Zwrite Off // if big outline width causing self-intersecting Z-fighting artifacts - try 'Zwrite On' 
+            //Zwrite On 
             
             HLSLPROGRAM
             #pragma vertex vert
